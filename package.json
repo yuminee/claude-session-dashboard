@@ -1,0 +1,14 @@
+{
+  "name": "claude-session-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time dashboard for monitoring Claude Code sessions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node scripts/generate-demo.js && CLAUDE_DIR=./demo-data DEMO_MODE=1 node server.js"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.0",
+    "ws": "^8.18.0"
+  }
+}

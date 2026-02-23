@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Session Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-box">
+        <div class="header-title">CLAUDE SESSION MONITOR <span class="version">v1.0</span></div>
+        <div class="header-right">
+          <button class="help-btn" id="helpToggle" title="Status Legend">?</button>
+          <div class="header-status" id="connectionStatus">
+            <span class="status-dot disconnected"></span> CONNECTING
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Status Legend Panel -->
+    <div class="legend-panel" id="legendPanel" style="display: none;">
+      <div class="legend-header">
+        <span>─ STATUS LEGEND ─</span>
+        <button class="detail-close" id="legendClose">×</button>
+      </div>
+      <div class="legend-body">
+        <table class="legend-table">
+          <thead>
+            <tr>
+              <th>STATUS</th>
+              <th>CONDITION</th>
+              <th>DESCRIPTION</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="legend-row-active">
+              <td><span class="badge badge-active"><span class="badge-icon">●</span> RUN</span></td>
+              <td>Process running + no stuck condition</td>
+              <td>Claude CLI is actively working. Process detected via <code>lsof</code> CWD matching and no error or permission wait detected in the JSONL tail.</td>
+            </tr>
+            <tr class="legend-row-stuck">
+              <td><span class="badge badge-stuck_permission"><span class="badge-icon">▲</span> PERM</span></td>
+              <td>Last assistant msg = <code>tool_use</code>, no <code>tool_result</code> after</td>
+              <td>Claude requested a tool (Bash, Edit, etc.) but hasn't received a result — likely waiting for user permission approval in the terminal.</td>
+            </tr>
+            <tr class="legend-row-stuck">
+              <td><span class="badge badge-stuck_error"><span class="badge-icon">▲</span> ERR</span></td>
+              <td>Last <code>tool_result</code> has <code>is_error: true</code> + process running</td>
+              <td>A tool execution returned an error. The session may be retrying or stuck in an error loop.</td>
+            </tr>
+            <tr class="legend-row-stuck">
+              <td><span class="badge badge-stuck_timeout"><span class="badge-icon">▲</span> TMOUT</span></td>
+              <td>Process running + JSONL not modified for &gt; 3 min</td>
+              <td>A Claude process is alive but hasn't produced any output for over 3 minutes. May indicate a long-running tool, network issue, or a hang.</td>
+            </tr>
+            <tr class="legend-row-done">
+              <td><span class="badge badge-completed"><span class="badge-icon">✓</span> DONE</span></td>
+              <td>No process + last msg = assistant text (no pending tool_use)</td>
+              <td>The session ended normally. Claude gave a final response and the process exited.</td>
+            </tr>
+            <tr class="legend-row-idle">
+              <td><span class="badge badge-idle"><span class="badge-icon">○</span> IDLE</span></td>
+              <td>Default (none of the above)</td>
+              <td>No running process and no clear completion signal. Old or abandoned sessions fall here.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="legend-footer-note">
+          Process detection: <code>ps + lsof -d cwd</code> matches Claude PID's working directory to session <code>projectPath</code>.<br>
+          JSONL analysis: reads the last 16KB of the session file to inspect recent messages.<br>
+          Timeout threshold: <strong>3 minutes</strong> (configurable in <code>lib/constants.js</code>).
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-group">
+        <span class="stat stat-active" id="statActive">■ 0 ACTIVE</span>
+        <span class="stat stat-stuck" id="statStuck">▲ 0 STUCK</span>
+        <span class="stat stat-completed" id="statCompleted">✓ 0 DONE</span>
+        <span class="stat stat-idle" id="statIdle">○ 0 IDLE</span>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Filter:</label>
+        <input type="text" id="filterInput" class="filter-input" placeholder="project, branch...">
+        <select id="statusFilter" class="filter-select">
+          <option value="all">ALL</option>
+          <option value="active">ACTIVE</option>
+          <option value="stuck">STUCK</option>
+          <option value="completed">DONE</option>
+          <option value="idle">IDLE</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Session Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <span class="col-status">STATUS</span>
+        <span class="col-project">PROJECT</span>
+        <span class="col-task">TASK</span>
+        <span class="col-branch">BRANCH</span>
+        <span class="col-age">AGE</span>
+        <span class="col-msgs">MSGS</span>
+      </div>
+      <div class="table-body" id="sessionList">
+        <div class="loading">Scanning sessions...</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span id="updateTime">Last update: --</span>
+      <span class="footer-sep">│</span>
+      <span id="sessionCount">0 sessions</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
